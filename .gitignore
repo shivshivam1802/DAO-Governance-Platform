@@ -1,0 +1,9 @@
+﻿node_modules/
+dist/
+.next/
+_temp_backup/
+reconstruct_git_history.ps1
+.env
+artifacts/
+cache/
+typechain-types/
