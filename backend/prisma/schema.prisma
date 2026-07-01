@@ -1,0 +1,165 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String   @id @default(uuid())
+  address         String   @unique
+  username        String?
+  avatar          String?
+  bio             String?
+  reputationScore Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships       Member[]
+  proposalsCreated  Proposal[] @relation("ProposalCreator")
+  votes             Vote[]
+  comments          Comment[]
+  stakedAssets      StakeRecord[]
+  reputationHistory ReputationHistory[]
+  notifications     Notification[]
+  delegatedFrom     Delegation[] @relation("DelegateFrom")
+  delegatedTo       Delegation[] @relation("DelegateTo")
+}
+
+model DAO {
+  id               String   @id @default(uuid())
+  name             String
+  logo             String?
+  banner           String?
+  description      String
+  website          String?
+  twitter          String?
+  discord          String?
+  telegram         String?
+  github           String?
+  tokenAddress     String
+  timelockAddress  String?
+  governorAddress  String?
+  treasuryAddress  String?
+  isVerified       Boolean  @default(false)
+  isPaused         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  members    Member[]
+  proposals  Proposal[]
+}
+
+model Member {
+  id        String   @id @default(uuid())
+  daoId     String
+  userId    String
+  role      String   // "ADMIN", "MODERATOR", "TREASURER", "MEMBER", "FOUNDER"
+  joinedAt  DateTime @default(now())
+
+  dao  DAO  @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([daoId, userId])
+}
+
+model Proposal {
+  id               String   @id @default(uuid())
+  daoId            String
+  creatorId        String
+  title            String
+  description      String
+  type             String   // "GENERAL", "TREASURY", "MINT", "BURN", "PARAMETER_CHANGE", "UPGRADE", "EMERGENCY"
+  status           String   // "DRAFT", "DISCUSSION", "VOTING", "SUCCEEDED", "FAILED", "QUEUED", "EXECUTED", "CANCELLED", "EXPIRED"
+  votingType       String   // "ON_CHAIN", "OFF_CHAIN"
+  choices          String[] // For off-chain voting: ["Yes", "No", "Abstain"]
+  votingStart      DateTime
+  votingEnd        DateTime
+  executionDelay   Int      @default(0) // in seconds
+  ipfsHash         String?
+  txHash           String?  // for on-chain proposals
+  aiSummary        String?
+  aiRiskAnalysis   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  dao      DAO       @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  creator  User      @relation("ProposalCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+  comments Comment[]
+}
+
+model Vote {
+  id         String   @id @default(uuid())
+  proposalId String
+  userId     String
+  choice     String   // e.g. "Yes", "No", "For", "Against"
+  weight     Float    // voting power
+  type       String   // "ON_CHAIN", "OFF_CHAIN"
+  signature  String?  // For EIP-712 signed votes
+  txHash     String?  // For on-chain votes
+  createdAt  DateTime @default(now())
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, userId])
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  proposalId String
+  userId     String
+  content    String
+  createdAt  DateTime @default(now())
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StakeRecord {
+  id           String   @id @default(uuid())
+  userId       String
+  amount       Float
+  lockDuration Int      // in seconds
+  startTime    DateTime @default(now())
+  active       Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Delegation {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("DelegateFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("DelegateTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+}
+
+model ReputationHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  scoreDiff Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  content   String
+  type      String   // "PROPOSAL_CREATED", "VOTING_STARTED", "VOTING_ENDING", "PROPOSAL_PASSED", "PROPOSAL_FAILED", "TREASURY_ALERT"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
