@@ -96,7 +96,7 @@ export default function ProposalDetail() {
           voter: address as `0x${string}`,
           proposalId: proposalId as string,
           choice: selectedChoice,
-          weight: 1000n,
+          weight: BigInt(1000),
         };
 
         await signTypedDataAsync({
