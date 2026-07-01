@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dao-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dao_governance
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dao-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dao-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - dao-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dao-backend
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/dao_governance?schema=public"
+      JWT_SECRET: "dao-governance-super-secret-key-12345!"
+      PORT: 3001
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - dao-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dao-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - dao-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  dao-network:
+    driver: bridge
